@@ -43,11 +43,14 @@ Here is then a simple routine to pretty-print rational numbers:
   implicit object safeLong extends PrettyPrint[SafeLong] {
 
     def print(a: SafeLong)(implicit s: PrettyStringBuilder): Res = {
-      if (a.isValidLong)
+	  // Atom is used to print a value that "stands on its own"
+	  if (a.isValidLong)
         Atom(a.toLong) // Atom has the side-effect of printing the value into the implicit PrettyStringBuffer
       else
         Atom(a.toString)
-      if (a.signum < 0) `unaryop_-` else Atom // correct after the fact that the outermost operator is -, if that is the case
+	  // When a < 0, the value has been printed with a preceding `-` operator that needs to be accounted for.
+	  // Instead of returning the result `Atom: Res` of the `Atom(...)` call, we return `unaryop_-` it those cases.
+      if (a.signum < 0) `unaryop_-` else Atom
     }
 
   }
@@ -55,10 +58,16 @@ Here is then a simple routine to pretty-print rational numbers:
   implicit object rational extends PrettyPrint[Rational] {
 
     def print(a: Rational)(implicit s: PrettyStringBuilder): Res = {
-      if (a.isWhole) {
+      if (a.isWhole) { 
+	    // if the number is whole, avoid allocating an intermediate SafeLong
         if (a.isValidLong) Atom(a.numeratorAsLong) else Atom(a.toString)
         if (a.signum < 0) `unaryop_-` else Atom
-      } else `op_/`(a.numerator, a.denominator) // use the / operator on two subparts
+      } else {
+	    // Our fraction is of the form "num / den", so we form the branch of the
+		// abstract syntax tree implicitly by calling the `op_/` operator, passing
+		// the left and right subexpressions. No allocations are needed, except possibly
+		// during the a.numerator and a.denominator calls.
+	    `op_/`(a.numerator, a.denominator)
     }
 
   }
