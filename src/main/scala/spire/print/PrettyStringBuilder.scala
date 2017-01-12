@@ -7,10 +7,10 @@ import scala.annotation.tailrec
 
 /** A variant of java.lang.StringBuilder/scala.collection.mutable.StringBuilder optimized for performance.
   * An underlying [[java.lang.StringBuilder]] is used to append strings. Strings can also be inserted in the middle
-  * of the [[FixupStringBuilder]] in a lazy manner: the position and the content of those "fixups" is registered and
+  * of the [[PrettyStringBuilder]] in a lazy manner: the position and the content of those "fixups" is registered and
   * those are inserted
   */
-class FixupStringBuilder {
+class PrettyStringBuilder {
 
   private[this] val underlying: JavaStringBuilder = new JavaStringBuilder
   private[this] var numFix: Int = 0
@@ -72,26 +72,30 @@ class FixupStringBuilder {
   }
 
   override def toString: String = if (numFix == 0) underlying.toString else {
-    ParQuickSort.qsort(fixPos, fixString, 0, numFix - 1)(spire.std.int.IntAlgebra, implicitly)
     @tailrec def finalLength(acc: Int, i: Int): Int = if (i == numFix) acc else finalLength(acc + fixString(i).length, i + 1)
-    val sb = new JavaStringBuilder(finalLength(underlying.length, 0))
+    val dest = new JavaStringBuilder(finalLength(underlying.length, 0))
+    printInto(dest)
+    dest.toString
+  }
+
+  def printInto(dest: JavaStringBuilder): Unit = {
+    ParQuickSort.qsort(fixPos, fixString, 0, numFix - 1)(spire.std.int.IntAlgebra, implicitly)
     @tailrec def iterate(beforeFix: Int): Unit = {
       val start = if (beforeFix == 0) 0 else fixPos(beforeFix - 1)
       val end = if (beforeFix == numFix) underlying.length else fixPos(beforeFix)
-      sb.append(underlying, start, end)
+      dest.append(underlying, start, end)
       if (beforeFix < numFix) {
-        sb.append(fixString(beforeFix))
+        dest.append(fixString(beforeFix))
         iterate(beforeFix + 1)
       }
     }
     iterate(0)
-    sb.toString
   }
 
 }
 
-object FixupStringBuilder {
+object PrettyStringBuilder {
 
-  def newBuilder(): FixupStringBuilder = new FixupStringBuilder
+  def newBuilder(): PrettyStringBuilder = new PrettyStringBuilder
 
 }

@@ -16,26 +16,26 @@ object AST {
   implicit object parenPrint extends PrettyPrint[AST] {
 
     val NegOp = Prefix("-", 20)
-    val Add = Infix.ofLeft("+", 40)
-    val Sub = Infix.ofLeft("-", 40)
-    val Mul = Infix.ofLeft("*", 30)
-    val Div = Infix.ofLeft("/", 40)
+    val Add = Infix.leftAssoc("+", 40)
+    val Sub = Infix.leftAssoc("-", 40)
+    val Mul = Infix.leftAssoc("*", 30)
+    val Div = Infix.leftAssoc("/", 40)
 
-    def print(a: AST)(implicit sb: FixupStringBuilder): Res = a match {
-      case Cons(i) => atom(i.toString)
-      case Inv(a) => infix(Cons(1), Div, a)
-      case Neg(a) => prefix(NegOp, a)
+    def print(a: AST)(implicit sb: PrettyStringBuilder): Res = a match {
+      case Cons(i) => Atom(i.toString)
+      case Inv(a) => Div(Cons(1), a)
+      case Neg(a) => NegOp(a)
       case Sum(list) => list.reverse match {
-        case last :: Nil => delegate(last)
-        case Neg(last) :: prev => infix(Sum(prev.reverse), Sub, last)
-        case last :: prev => infix(Sum(prev.reverse), Add, last)
-        case Nil => atom("0")
+        case last :: Nil => print(last)
+        case Neg(last) :: prev => Sub(Sum(prev.reverse), last)
+        case last :: prev => Add(Sum(prev.reverse), last)
+        case Nil => Atom("0")
       }
       case Prod(list) => list.reverse match {
-        case last :: Nil => delegate(last)
-        case Inv(last) :: prev => infix(Prod(prev.reverse), Div, last)
-        case last :: prev => infix(Prod(prev.reverse), Mul, last)
-        case Nil => atom("1")
+        case last :: Nil => print(last)
+        case Inv(last) :: prev => Div(Prod(prev.reverse), last)
+        case last :: prev => Mul(Prod(prev.reverse), last)
+        case Nil => Atom("1")
       }
     }
 

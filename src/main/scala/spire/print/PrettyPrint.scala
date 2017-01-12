@@ -1,21 +1,32 @@
 package spire.print
 
+import spire.algebra.{IsReal, Ring, Signed}
+import spire.math.{Complex, Rational, SafeLong}
+import spire.print.Op.{Infix, Prefix}
 import spire.util.Opt
 
 // Implements unparsing of expressions according to
 // N. Ramsey, “Unparsing expressions with prefix and postfix operators,”
 // Software: Practice and Experience, vol. 28, no. 12, pp. 1327–1356, 1998.
 
-trait PrettyPrint[-A] extends PrettyPrint.Syntax {
+trait PrettyPrint[-A] {
 
-  def print(a: A)(implicit s: FixupStringBuilder): Res
+  def print(a: A)(implicit s: PrettyStringBuilder): Res
 
 }
 
 object PrettyPrint {
 
+  val `unaryop_-` = Prefix("-", 10)
+  val `invop_*` = Infix.leftAssoc("", 30)
+  val `op_*` = Infix.leftAssoc("*", 30)
+  val `op_/` = Infix.leftAssoc("/", 30)
+  val `op_+` = Infix.leftAssoc("+", 40)
+  val `op_-` = Infix.leftAssoc("-", 40)
+
+
   def string[A](a: A)(implicit pp: PrettyPrint[A]): String = {
-    implicit val sb = FixupStringBuilder.newBuilder()
+    implicit val sb = PrettyStringBuilder.newBuilder()
     pp.print(a)
     sb.toString
   }
@@ -50,72 +61,48 @@ object PrettyPrint {
     }
   }
 
-  trait Syntax {
+  implicit object safeLong extends PrettyPrint[SafeLong] {
 
-    def delegate[A:PrettyPrint](a: A)(implicit sb: FixupStringBuilder): Res = implicitly[PrettyPrint[A]].print(a)
-
-    // TODO: link all "append" FixupStringBuilder methods
-
-    def atom(str: String)(implicit sb: FixupStringBuilder): Res = {
-      sb.append(str)
-      Atom
-    }
-
-    def atom(i: Int)(implicit sb: FixupStringBuilder): Res = {
-      sb.append(i)
-      Atom
-    }
-
-    def atom(l: Long)(implicit sb: FixupStringBuilder): Res = {
-      sb.append(l)
-      Atom
-    }
-
-    def prefix[A:PrettyPrint](outerOp: Op.Prefix, a: A)(implicit sb: FixupStringBuilder): Res = {
-      sb.append(outerOp.symbol)
-      val innerStart = sb.length
-      implicitly[PrettyPrint[A]].print(a) match {
-        case innerOp: Op if !noParens(outerOp, innerOp, Opt.empty[Side]) =>
-          sb.addFixup(innerStart, "(")
-          sb.append(")")
-        case _ =>
-      }
-      outerOp
-    }
-
-    def postfix[A:PrettyPrint](a: A, outerOp: Op.Postfix)(implicit sb: FixupStringBuilder): Res = {
-      val innerStart = sb.length
-      implicitly[PrettyPrint[A]].print(a) match {
-        case innerOp: Op if !noParens(outerOp, innerOp, Opt.empty[Side]) =>
-          sb.addFixup(innerStart, "(")
-          sb.append(")")
-        case _ =>
-      }
-      sb.append(outerOp.symbol)
-      outerOp
-    }
-
-
-    def infix[L:PrettyPrint, R:PrettyPrint](l: L, outerOp: Op.Infix, r: R)(implicit sb: FixupStringBuilder): Res = {
-      val leftStart = sb.length
-      implicitly[PrettyPrint[L]].print(l) match {
-        case innerOp: Op if !noParens(outerOp, innerOp, Opt(Side.Left)) =>
-          sb.addFixup(leftStart, "(")
-          sb.append(")")
-        case _ =>
-      }
-      sb.append(outerOp.symbol)
-      val rightStart = sb.length
-      implicitly[PrettyPrint[R]].print(r) match {
-        case innerOp: Op if !noParens(outerOp, innerOp, Opt(Side.Right)) =>
-          sb.addFixup(rightStart, "(")
-          sb.append(")")
-        case inner =>
-      }
-      outerOp
+    def print(a: SafeLong)(implicit s: PrettyStringBuilder): Res = {
+      if (a.isValidLong)
+        Atom(a.toLong)
+      else
+        Atom(a.toString)
+      if (a.signum < 0) `unaryop_-` else Atom
     }
 
   }
 
+  implicit object rational extends PrettyPrint[Rational] {
+
+    def print(a: Rational)(implicit s: PrettyStringBuilder): Res = {
+      if (a.isWhole) {
+        if (a.isValidLong) Atom(a.numeratorAsLong) else Atom(a.toString)
+        if (a.signum < 0) `unaryop_-` else Atom
+      } else `op_/`(a.numerator, a.denominator)
+    }
+
+  }
+
+  implicit def complex[A:PrettyPrint:IsReal:Ring]: PrettyPrint[Complex[A]] = new PrettyPrint[Complex[A]] {
+
+    def print(a: Complex[A])(implicit s: PrettyStringBuilder): Res = {
+      if (a.isReal) PrettyPrint[A].print(a.real)
+      else if (a.isImaginary) {
+        val res = PrettyPrint[A].print(a.imag)
+        s.append("i")
+        res
+      } else if (Signed[A].isSignNegative(a.imag)) {
+        val res = `op_-`(a.real, Ring[A].negate(a.imag))
+        s.append("i")
+        res
+      } else {
+        val res = `op_+`(a.real, a.imag)
+        s.append("i")
+        res
+      }
+    }
+
+  }
 
 }
