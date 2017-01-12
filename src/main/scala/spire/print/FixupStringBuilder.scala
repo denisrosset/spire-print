@@ -75,16 +75,16 @@ class FixupStringBuilder {
     ParQuickSort.qsort(fixPos, fixString, 0, numFix - 1)(spire.std.int.IntAlgebra, implicitly)
     @tailrec def finalLength(acc: Int, i: Int): Int = if (i == numFix) acc else finalLength(acc + fixString(i).length, i + 1)
     val sb = new JavaStringBuilder(finalLength(underlying.length, 0))
-    @tailrec def append(beforeFix: Int): Unit = {
-      val start = if (beforeFix == 0) 0 else fixPos(numFix - 1)
-      val end = if (beforeFix == numFix) underlying.length else fixPos(numFix)
-      sb.append(underlying, start, end - start)
+    @tailrec def iterate(beforeFix: Int): Unit = {
+      val start = if (beforeFix == 0) 0 else fixPos(beforeFix - 1)
+      val end = if (beforeFix == numFix) underlying.length else fixPos(beforeFix)
+      sb.append(underlying, start, end)
       if (beforeFix < numFix) {
         sb.append(fixString(beforeFix))
-        append(beforeFix + 1)
+        iterate(beforeFix + 1)
       }
     }
-    append(0)
+    iterate(0)
     sb.toString
   }
 
