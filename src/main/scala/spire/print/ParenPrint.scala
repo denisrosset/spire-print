@@ -17,13 +17,16 @@ import Side.{Left, Right}
 
 sealed abstract class Res
 
+case object Atom extends Res
+
 sealed abstract class Op extends Res {
   def symbol: String
   def priority: Int
 }
 
 object Op {
-  def unapply(op: Op): Option[(String, Int)] = Some((op.symbol, op.priority))
+
+  def unapply(op: Op): Opt[(String, Int)] = Opt((op.symbol, op.priority))
 
   // corresponds to fixity=PREFIX
   case class Prefix(symbol: String, priority: Int) extends Op
@@ -48,7 +51,7 @@ object Op {
 
 trait ParenPrint[-A] {
 
-  def print(a: A): (String, Opt[Op])
+  def print(a: A): (String, Res)
 
 }
 
@@ -82,30 +85,30 @@ object ParenPrint {
     }
   }
 
-  def atom(str: String): (String, Opt[Op]) = (str, Opt.empty[Op])
+  def atom(str: String): (String, Res) = (str, Atom)
 
-  def prefix[A:ParenPrint](outerOp: Op.Prefix, a: A): (String, Opt[Op]) =
+  def prefix[A:ParenPrint](outerOp: Op.Prefix, a: A): (String, Res) =
     ParenPrint[A].print(a) match {
-      case (inner, Opt(innerOp)) if !noParens(outerOp, innerOp, Opt.empty[Side]) => (outerOp.symbol + "(" + inner + ")", Opt(outerOp))
-      case (inner, _) => (outerOp.symbol + inner, Opt(outerOp))
+      case (inner, innerOp: Op) if !noParens(outerOp, innerOp, Opt.empty[Side]) => (outerOp.symbol + "(" + inner + ")", outerOp)
+      case (inner, _) => (outerOp.symbol + inner, outerOp)
     }
 
-  def postfix[A:ParenPrint](a: A, outerOp: Op.Postfix): (String, Opt[Op]) =
+  def postfix[A:ParenPrint](a: A, outerOp: Op.Postfix): (String, Res) =
     ParenPrint[A].print(a) match {
-      case (inner, Opt(innerOp)) if !noParens(outerOp, innerOp, Opt.empty[Side]) => ("(" + inner + ")" + outerOp.symbol, Opt(outerOp))
-      case (inner, _) => (inner + outerOp.symbol, Opt(outerOp))
+      case (inner, innerOp: Op) if !noParens(outerOp, innerOp, Opt.empty[Side]) => ("(" + inner + ")" + outerOp.symbol, outerOp)
+      case (inner, _) => (inner + outerOp.symbol, outerOp)
     }
 
-  def infix[L:ParenPrint, R:ParenPrint](l: L, outerOp: Op.Infix, r: R): (String, Opt[Op]) = {
+  def infix[L:ParenPrint, R:ParenPrint](l: L, outerOp: Op.Infix, r: R): (String, Res) = {
     val leftStr = ParenPrint[L].print(l) match {
-      case (inner, Opt(innerOp)) if !noParens(outerOp, innerOp, Opt(Left)) => "(" + inner + ")"
+      case (inner, innerOp: Op) if !noParens(outerOp, innerOp, Opt(Left)) => "(" + inner + ")"
       case (inner, _) => inner
     }
     val rightStr = ParenPrint[R].print(r) match {
-      case (inner, Opt(innerOp)) if !noParens(outerOp, innerOp, Opt(Right)) => "(" + inner + ")"
+      case (inner, innerOp: Op) if !noParens(outerOp, innerOp, Opt(Right)) => "(" + inner + ")"
       case (inner, _) => inner
     }
-    (leftStr + outerOp.symbol + rightStr, Opt(outerOp))
+    (leftStr + outerOp.symbol + rightStr, outerOp)
   }
 
   @inline final def apply[A](implicit ev: ParenPrint[A]): ParenPrint[A] = ev
