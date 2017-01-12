@@ -8,7 +8,7 @@ This is an implementation of the algorithm described in:
 
 See the [original paper](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.39.1314&rep=rep1&type=pdf).
 
-A similar implementation is available in the library [Kiama](https://bitbucket.org/inkytonik/kiama/src/4c429aa2dfda2f34f731d12fb9878859b7c4be66/library/src/main/scala/org/bitbucket/inkytonik/kiama/output/ParenPrettyPrinter.scala?at=default&fileviewer=file-view-default). The major difference is that our implementation uses mutable state, does not allocate objects for intermediate values, and should have speed comparable to `scala.collection.mutable.StringBuilder`.
+A similar implementation is available in the library [Kiama](https://bitbucket.org/inkytonik/kiama/src/4c429aa2dfda2f34f731d12fb9878859b7c4be66/library/src/main/scala/org/bitbucket/inkytonik/kiama/output/ParenPrettyPrinter.scala?at=default&fileviewer=file-view-default). The major difference is that our implementation uses mutable state, does not support multiline documents, does not allocate objects for intermediate values, and should have speed comparable to `scala.collection.mutable.StringBuilder`.
 
 Algorithm outline
 -----------------
