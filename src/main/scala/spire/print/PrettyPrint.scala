@@ -214,64 +214,6 @@ object PrettyPrint {
 
   }
 
-  val verbatimX = Verbatim("x")
-
-  case class XPower(exp: Int) extends AnyVal
-
-  implicit object _xPower extends PrettyPrint[XPower] {
-
-    def print(a: XPower)(implicit s: PrettyStringBuilder): Res = a.exp match {
-      case 0 => Atom("1")
-      case 1 => Atom("x")
-      case e => `op_^`(verbatimX, e)
-    }
-
-  }
-
-  implicit def term[A:Eq:Ring:PrettyPrint]: PrettyPrint[Term[A]] = new PrettyPrint[Term[A]] {
-
-    def print(a: Term[A])(implicit s: PrettyStringBuilder): Res =
-      if (a.exp == 0) PrettyPrint[A].print(a.coeff)
-      else `invop_*`(a.coeff, XPower(a.exp))
-
-  }
-
-  trait NegativeFirstTerm[-A] {
-
-    def apply(a: A): Boolean
-
-  }
-
-  abstract class DefaultNegativeFirstTerm {
-
-    object default extends NegativeFirstTerm[Any] {
-      def apply(a: Any): Boolean = false
-    }
-
-    implicit def fromAny[A]: NegativeFirstTerm[A] = default
-
-  }
-
-  object NegativeFirstTerm {
-
-    def apply[A](implicit ev: NegativeFirstTerm[A]): NegativeFirstTerm[A] = ev
-
-    implicit def fromSigned[A](implicit s: Signed[A]): NegativeFirstTerm[A] = new NegativeFirstTerm[A] {
-      def apply(a: A) = s.isSignNegative(a)
-    }
-
-    implicit def fromComplex[A](implicit ir: IsReal[A]): NegativeFirstTerm[Complex[A]] = new NegativeFirstTerm[Complex[A]] {
-      def apply(c: Complex[A]) =
-        if (c.isImaginary) ir.isSignNegative(c.imag) else ir.isSignNegative(c.real)
-    }
-
-    implicit def fromPolynomial[A:Semiring](implicit s: NegativeFirstTerm[A]): NegativeFirstTerm[Polynomial[A]] = new NegativeFirstTerm[Polynomial[A]] {
-      def apply(p: Polynomial[A]): Boolean =
-        if (p.isConstant) s(p.nth(0)) else s(p.termsIterator.next().coeff)
-    }
-
-  }
-
   implicit def polynomial[A:Eq:NegativeFirstTerm:Ring:PrettyPrint]: PrettyPrint[Polynomial[A]] = new PrettyPrint[Polynomial[A]] {
 
     def print(poly: Polynomial[A])(implicit s: PrettyStringBuilder): Res =
@@ -312,8 +254,7 @@ object PrettyPrint {
             if (NegativeFirstTerm[A].apply(coeff)) {
               val lp = `op_-`.enterLeft(leftPos)
               `op_-`.exitLeft(lp, leftRes)
-              s.append(`op_-`.symbol)
-              // TODO: add helper
+              `op_-`.printOp()
               val rp = `op_-`.enterRight
               val rr = printTerm(Ring[A].negate(coeff), exp)
               `op_-`.exitRight(rp, rr)
@@ -321,8 +262,7 @@ object PrettyPrint {
             } else {
               val lp = `op_+`.enterLeft(leftPos)
               `op_+`.exitLeft(lp, leftRes)
-              s.append(`op_+`.symbol)
-              // TODO: add helper
+              `op_+`.printOp()
               val rp = `op_+`.enterRight
               val rr = printTerm(coeff, exp)
               `op_+`.exitRight(rp, rr)

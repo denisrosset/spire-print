@@ -39,6 +39,7 @@ case object Atom extends Res {
 sealed abstract class Op extends Res {
   def symbol: String
   def priority: Int
+  def printOp()(implicit s: PrettyStringBuilder): Unit = s.append(symbol)
 }
 
 object Op {
