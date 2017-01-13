@@ -47,6 +47,6 @@ object Test extends App {
 
   val ast = Prod(List(Cons(3), Neg(Cons(2)), Cons(3), Sum(List(Cons(3), Neg(Cons(2))))))
 
-  println(PrettyPrint.string(ast))
+  println(PrettyPrint.pretty(ast))
 
 }

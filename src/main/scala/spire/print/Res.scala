@@ -1,5 +1,6 @@
 package spire.print
 
+import spire.print.PrettyStringBuilder.Pos
 import spire.util.Opt
 
 // Implements unparsing of expressions according to
@@ -44,29 +45,59 @@ object Op {
 
   def unapply(op: Op): Opt[(String, Int)] = Opt((op.symbol, op.priority))
 
+  case class EnterPos(val i: Int) extends AnyVal
+
+  object EnterPos {
+    implicit def toPos(e: EnterPos): Pos = Pos(e.i)
+    implicit def fromPos(p: Pos): EnterPos = EnterPos(p.i)
+  }
+
+  sealed trait UnaryOp extends Op {
+
+    def needsParens(inner: Res): Boolean
+
+    def enter(pos: Pos): EnterPos = pos
+
+    def enter(implicit s: PrettyStringBuilder): EnterPos = s.currentPos
+
+    def exit(e: EnterPos, inner: Res)(implicit s: PrettyStringBuilder): Unit =
+      if (needsParens(inner)) {
+        s.addFixup(e, "(")
+        s.append(")")
+      }
+
+  }
+
   // corresponds to fixity=PREFIX
-  case class Prefix(symbol: String, priority: Int) extends Op { outerOp =>
+  case class Prefix(symbol: String, priority: Int) extends UnaryOp { outerOp =>
 
     def apply[A:PrettyPrint](a: A)(implicit sb: PrettyStringBuilder): Res = {
       sb.append(outerOp.symbol)
-      val innerStart = sb.length
+      val innerStart = sb.currentPos
       implicitly[PrettyPrint[A]].print(a) match {
-        case innerOp: Op if !PrettyPrint.noParens(outerOp, innerOp, Opt.empty[Side]) =>
+        case innerOp: Op if needsParens(innerOp) =>
           sb.addFixup(innerStart, "(")
           sb.append(")")
         case _ =>
       }
       outerOp
+    }
+
+    def needsParens(inner: Res): Boolean = inner match {
+      case Atom => false
+      case innerOp: Op if innerOp.priority < outerOp.priority => false // inner operator has stronger coupling
+      case _: Op.Prefix => false // case (c), both operators have the same fixity
+      case _ => true
     }
 
   }
   // corresponds to fixity=POSTFIX
-  case class Postfix(symbol: String, priority: Int) extends Op { outerOp =>
+  case class Postfix(symbol: String, priority: Int) extends UnaryOp { outerOp =>
 
     def apply[A:PrettyPrint](a: A)(implicit sb: PrettyStringBuilder): Res = {
-      val innerStart = sb.length
+      val innerStart = sb.currentPos
       implicitly[PrettyPrint[A]].print(a) match {
-        case innerOp: Op if !PrettyPrint.noParens(outerOp, innerOp, Opt.empty[Side]) =>
+        case innerOp: Op if needsParens(innerOp) =>
           sb.addFixup(innerStart, "(")
           sb.append(")")
         case _ =>
@@ -75,7 +106,29 @@ object Op {
       outerOp
     }
 
+    def needsParens(inner: Res): Boolean = inner match {
+      case Atom => false
+      case innerOp: Op if innerOp.priority < outerOp.priority => false // inner operator has stronger coupling
+      case _: Op.Postfix => false // case (c), both operators have the same fixity
+      case _ => true
+    }
+
   }
+
+  case class LeftEnterPos(val i: Int) extends AnyVal
+
+  object LeftEnterPos {
+    implicit def toPos(e: LeftEnterPos): Pos = Pos(e.i)
+    implicit def fromPos(p: Pos): LeftEnterPos = LeftEnterPos(p.i)
+  }
+
+  case class RightEnterPos(val i: Int) extends AnyVal
+
+  object RightEnterPos {
+    implicit def toPos(e: RightEnterPos): Pos = Pos(e.i)
+    implicit def fromPos(p: Pos): RightEnterPos = RightEnterPos(p.i)
+  }
+
 
   /** Infix operator, corresponds to fixity = INFIX of ...
     *
@@ -86,23 +139,58 @@ object Op {
   case class Infix(symbol: String, priority: Int, associativity: Opt[Side]) extends Op { outerOp =>
 
     def apply[L:PrettyPrint, R:PrettyPrint](l: L, r: R)(implicit sb: PrettyStringBuilder): Res = {
-      val leftStart = sb.length
+      val leftStart = sb.currentPos
       implicitly[PrettyPrint[L]].print(l) match {
-        case innerOp: Op if !PrettyPrint.noParens(outerOp, innerOp, Opt(Side.Left)) =>
+        case innerOp: Op if needsParens(innerOp, Side.Left) =>
           sb.addFixup(leftStart, "(")
           sb.append(")")
         case _ =>
       }
       sb.append(outerOp.symbol)
-      val rightStart = sb.length
+      val rightStart = sb.currentPos
       implicitly[PrettyPrint[R]].print(r) match {
-        case innerOp: Op if !PrettyPrint.noParens(outerOp, innerOp, Opt(Side.Right)) =>
+        case innerOp: Op if needsParens(innerOp, Side.Right) =>
           sb.addFixup(rightStart, "(")
           sb.append(")")
         case _ =>
       }
       outerOp
     }
+
+    def needsParens(inner: Res, side: Side): Boolean = inner match {
+      case Atom => false
+      case innerOp: Op if innerOp.priority < outerOp.priority => false // inner operator has stronger coupling
+      case _: Op.Postfix if side == Side.Left => false // (... postfix) ...
+      case _: Op.Prefix if side == Side.Right => false // // ... (prefix ...)
+      case innerOp@Op.Infix(_, _, Opt(Side.Left)) if side == Side.Left =>
+        // (... infixI ...) infixO ...
+        // if infixI and infixO are both left associative, with same priority => no parentheses needed.
+        // otherwise, parentheses required
+        (outerOp.priority != innerOp.priority) || (outerOp.associativity != Opt(Side.Left))
+      case innerOp@Op.Infix(_, _, Opt(Side.Right)) if side == Side.Right =>
+        // ... infixO (... infixI ...)
+        // if infixI and infixO are both right associative, with the same priority => no parentheses needed
+        (outerOp.priority != innerOp.priority) || (outerOp.associativity != Opt(Side.Right))
+      case _ => true
+    }
+
+    def enterLeft(pos: Pos): LeftEnterPos = pos
+    def enterLeft(implicit s: PrettyStringBuilder): LeftEnterPos = s.currentPos
+
+    def exitLeft(e: LeftEnterPos, inner: Res)(implicit s: PrettyStringBuilder): Unit =
+      if (needsParens(inner, Left)) {
+        s.addFixup(e, "(")
+        s.append(")")
+      }
+
+    def enterRight(pos: Pos): LeftEnterPos = pos
+    def enterRight(implicit s: PrettyStringBuilder): RightEnterPos = s.currentPos
+
+    def exitRight(e: RightEnterPos, inner: Res)(implicit s: PrettyStringBuilder): Unit =
+      if (needsParens(inner, Right)) {
+        s.addFixup(e, "(")
+        s.append(")")
+      }
 
   }
 
