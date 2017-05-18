@@ -1,17 +1,17 @@
 val scala210Version = "2.10.6"
-val scala211Version = "2.11.8"
-val scala212Version = "2.12.1"
+val scala211Version = "2.11.11"
+val scala212Version = "2.12.2"
 
 val disciplineVersion = "0.7.2"
 val scalaCheckVersion = "1.13.4"
 val scalaTestVersion = "3.0.1"
-val spireVersion = "0.13.0"
+val spireVersion = "0.14.1"
 
 name := "spire-print"
 
 libraryDependencies ++= Seq(
-  "org.spire-math" %% "spire" % spireVersion,
-  "org.spire-math" %% "spire-laws" % spireVersion % "test",
+  "org.typelevel" %% "spire" % spireVersion,
+  "org.typelevel" %% "spire-laws" % spireVersion % "test",
   "org.scalatest" %% "scalatest" % scalaTestVersion % "test",
   "org.typelevel" %% "discipline" % disciplineVersion % "test",
   "org.scalacheck" %% "scalacheck" % scalaCheckVersion % "test"
