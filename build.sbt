@@ -21,6 +21,8 @@ scalaVersion := scala212Version
 
 crossScalaVersions := Seq(scala210Version, scala211Version, scala212Version)
 
+releaseCrossBuild := true
+
 scalacOptions ++= commonScalacOptions.diff(Seq(
     "-Xfatal-warnings",
     "-Ywarn-dead-code",
