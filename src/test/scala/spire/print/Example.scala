@@ -1,17 +1,16 @@
 package spire.print
 
 import spire.print.Op.{Infix, Prefix}
-import spire.util.Opt
 
 sealed trait AST
 
-case class Cons(i: Int) extends AST
-case class Sum(list: List[AST]) extends AST
-case class Prod(list: List[AST]) extends AST
-case class Inv(a: AST) extends AST
-case class Neg(a: AST) extends AST
-
 object AST {
+
+  case class Cons(i: Int) extends AST
+  case class Sum(list: List[AST]) extends AST
+  case class Prod(list: List[AST]) extends AST
+  case class Inv(a: AST) extends AST
+  case class Neg(a: AST) extends AST
 
   implicit object parenPrint extends PrettyPrint[AST] {
 
@@ -19,7 +18,7 @@ object AST {
     val Add = Infix.leftAssoc("+", 40)
     val Sub = Infix.leftAssoc("-", 40)
     val Mul = Infix.leftAssoc("*", 30)
-    val Div = Infix.leftAssoc("/", 40)
+    val Div = Infix.leftAssoc("/", 30)
 
     def print(a: AST)(implicit sb: PrettyStringBuilder): Res = a match {
       case Cons(i) => Atom(i.toString)
@@ -43,10 +42,14 @@ object AST {
 
 }
 
-object Test extends App {
+class ASTSuite extends SpirePrintSuite {
+  
+  import AST.{Prod, Neg, Sum, Cons}
 
-  val ast = Prod(List(Cons(3), Neg(Cons(2)), Cons(3), Sum(List(Cons(3), Neg(Cons(2))))))
-
-  println(PrettyPrint.pretty(ast))
+  test("AST pretty-printing") {
+    val ast = Prod(List(Cons(3), Neg(Cons(2)), Cons(3), Sum(List(Cons(3), Neg(Cons(2))))))
+    PrettyPrint.pretty(ast) shouldBe "3*-2*3*(3-2)"
+  }
 
 }
+
