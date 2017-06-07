@@ -5,6 +5,7 @@ import spire.print.Op.{Infix, Prefix}
 sealed trait AST
 
 object AST {
+  import defaults._
 
   case class Cons(i: Int) extends AST
   case class Sum(list: List[AST]) extends AST
@@ -43,7 +44,7 @@ object AST {
 }
 
 class ASTSuite extends SpirePrintSuite {
-  
+
   import AST.{Prod, Neg, Sum, Cons}
 
   test("AST pretty-printing") {

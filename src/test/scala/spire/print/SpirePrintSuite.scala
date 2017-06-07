@@ -7,3 +7,4 @@ import org.typelevel.discipline.scalatest.Discipline
 trait SpirePrintSuite extends FunSuite with Matchers
   with PropertyChecks
   with spire.syntax.AllSyntax
+  with Discipline

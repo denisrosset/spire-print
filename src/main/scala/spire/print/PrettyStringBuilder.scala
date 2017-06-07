@@ -54,7 +54,7 @@ class PrettyStringBuilder {
 
   def append(sb: StringBuffer): this.type = { underlying.append(sb); this }
 
-  def appendCodePoint(codePoint: Int): this.type = { underlying.append(codePoint); this }
+  def appendCodePoint(codePoint: Int): this.type = { underlying.appendCodePoint(codePoint); this }
 
   /** Registers the insertion of `string` at the position `pos`. The underlying string builder is not modified:
     * its length, the position of previously inserted characters is not changed. These insertions will be performed

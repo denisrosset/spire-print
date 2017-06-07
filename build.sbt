@@ -3,6 +3,7 @@ val scala211Version = "2.11.11"
 val scala212Version = "2.12.2"
 
 val disciplineVersion = "0.7.2"
+val fastParseVersion = "0.4.2"
 val scalaCheckVersion = "1.13.4"
 val scalaTestVersion = "3.0.1"
 val spireVersion = "0.14.1"
@@ -14,6 +15,7 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "spire-laws" % spireVersion % "test",
   "org.scalatest" %% "scalatest" % scalaTestVersion % "test",
   "org.typelevel" %% "discipline" % disciplineVersion % "test",
+  "com.lihaoyi" %% "fastparse" % fastParseVersion,
   "org.scalacheck" %% "scalacheck" % scalaCheckVersion % "test"
 )
 
